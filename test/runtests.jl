@@ -1,8 +1,27 @@
 using Erosion
-using Erosion: neighborhood, elliptic_falloff
+using Erosion: neighborhood, elliptic_falloff, ErosionMetrics, Cell, GridPosition, corners, bilinear_weights
 using Test
 
 @testset "Erosion.jl" begin
+    @testset "Cell" begin
+        position = (20.0, 30.0)
+        cell = Cell(position)
+        @test cell.bottom_left == GridPosition(position)
+        @test cell.bottom_right == GridPosition(position .+ (1, 0))
+        @test cell.top_left == GridPosition(position .+ (0, 1))
+        @test cell.top_right == GridPosition(position .+ 1)
+        weights = bilinear_weights(cell, position)
+        @test weights[1] == 1.0
+        @test sum(weights) == 1
+        @test all(≥(0), weights)
+        weights = bilinear_weights(cell, position .+ 0.5)
+        @test all(==(0.25), weights)
+        weights = bilinear_weights(cell, position .+ (0.13, 0.78))
+        @test sum(weights) == 1
+        @test all(≥(0), weights)
+        @test all(bilinear_weights(cell, corners(cell)[i])[i] == 1.0 for i in 1:4)
+    end
+
     @testset "Elliptic falloff" begin
         radius = (21.4, 24.9)
         nx, ny = neighborhood(radius)
@@ -33,6 +52,11 @@ using Test
         @test elliptic_falloff((0.0, 0.0), (radius[1], 0.0), radius) == 0.0
         @test elliptic_falloff((0.0, 0.0), (radius[1] - 1, 0.0), radius) > 0.0
     end
+
+    @testset "Erosion metrics" begin
+        metrics = ErosionMetrics(0.23, 0.1, 0.24, 0.465)
+        @test isa(repr(metrics), String)
+    end
 end
 
 using ProceduralNoise
@@ -44,9 +68,10 @@ coords = Tuple(0.0:1/r:(1.0 - 1.0/r) for r in resolution)
 grid = collect(Iterators.product(coords...))
 perlin = Perlin(scale)
 noise = Fractal(perlin, octaves = 8)
-terrain = noise.(grid)
+terrain = noise.(grid) .+ 0.5
 
 heatmap(terrain)
 
 # result = erode!(copy(terrain), HydraulicErosion())
-let terrain = copy(terrain); erode!(terrain, HydraulicErosion()); heatmap(terrain); end
+let terrain = copy(terrain); display(erode!(terrain, HydraulicErosion())); heatmap(terrain); end
+display(heatmap(terrain)); let terrain = copy(terrain); display(erode!(terrain, HydraulicErosion())); heatmap(terrain); end
