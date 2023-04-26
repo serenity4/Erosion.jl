@@ -3,6 +3,9 @@ using Erosion: neighborhood, elliptic_falloff, ErosionMetrics, Cell, GridPositio
 using Test
 using ProceduralNoise
 using Plots: heatmap
+using Accessors
+using FileIO
+using ImageIO
 
 @testset "Erosion.jl" begin
     @testset "Cell" begin
@@ -62,6 +65,7 @@ using Plots: heatmap
 end
 
 resolution = (512, 512)
+resolution = (1024, 1024)
 scale = (2, 2) .^ 4
 coords = Tuple(0.0:1/r:(1.0 - 1.0/r) for r in resolution)
 grid = collect(Iterators.product(coords...))
@@ -72,8 +76,9 @@ terrain = remap.(terrain, Ref((minimum(terrain), maximum(terrain))), Ref((0.0, 1
 
 heatmap(terrain)
 
-erosion = HydraulicErosion(iterations = 100000, droplet_effect_radius = 0.01, seed = 1, erosion_factor = 0.05, deposition_factor = 10)
+erosion = HydraulicErosion(iterations = 400000, droplet_effect_radius = 0.01, seed = 1, erosion_factor = 0.05, deposition_factor = 10, terrain_size = (2.0, 2.0))
 # result = erode!(copy(terrain), erosion)
-let terrain = copy(terrain); display(@profview(erode!(terrain, erosion))); end
-let terrain = copy(terrain); display(erode!(terrain, erosion)); heatmap(terrain); end
-display(heatmap(terrain)); let terrain = copy(terrain); display(erode!(terrain, erosion)); heatmap(terrain); end
+let terrain = copy(terrain); display(@profview(@time erode!(terrain, erosion))); end
+let terrain = copy(terrain); display(@time erode!(terrain, erosion)); heatmap(terrain); end
+display(heatmap(terrain)); let terrain = copy(terrain); display(@time erode!(terrain, erosion)); heatmap(terrain); end
+display(heatmap(terrain)); let terrain = copy(terrain); save("terrain.png", terrain); display(@time erode!(terrain, erosion)); display(heatmap(terrain)); save("eroded.png", terrain); end

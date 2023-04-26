@@ -24,6 +24,8 @@ struct HydraulicErosion{RNG<:AbstractRNG}
   droplet_min_speed::Float64
 end
 
+HydraulicErosion(gravity, iterations, rng, args...) = HydraulicErosion{typeof(rng)}(gravity, iterations, rng, args...)
+
 function HydraulicErosion(;
     gravity = 9.81,
     iterations = 10000,
@@ -37,11 +39,11 @@ function HydraulicErosion(;
     droplet_inertia = 0.4,
     droplet_min_deposited = 0.01,
     droplet_capacity = 1.0,
-    droplet_effect_radius = 0.02,
+    droplet_effect_radius = 0.01,
     droplet_max_steps = 1000,
     droplet_min_speed = 0.05,
   )
-  HydraulicErosion{typeof(rng)}(gravity, iterations, rng, seed, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
+  HydraulicErosion(gravity, iterations, rng, seed, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
 end
 
 struct Droplet
