@@ -68,10 +68,12 @@ coords = Tuple(0.0:1/r:(1.0 - 1.0/r) for r in resolution)
 grid = collect(Iterators.product(coords...))
 perlin = Perlin(scale)
 noise = Fractal(perlin, octaves = 8)
-terrain = noise.(grid) .+ 0.5
+terrain = noise.(grid)
+terrain = remap.(terrain, Ref((minimum(terrain), maximum(terrain))), Ref((0.0, 1.0)))
 
 heatmap(terrain)
 
-# result = erode!(copy(terrain), HydraulicErosion())
-let terrain = copy(terrain); display(erode!(terrain, HydraulicErosion())); heatmap(terrain); end
-display(heatmap(terrain)); let terrain = copy(terrain); display(erode!(terrain, HydraulicErosion())); heatmap(terrain); end
+erosion = HydraulicErosion(iterations = 10000, droplet_effect_radius = 0.02, seed = 1)
+# result = erode!(copy(terrain), erosion)
+let terrain = copy(terrain); display(erode!(terrain, erosion)); heatmap(terrain); end
+display(heatmap(terrain)); let terrain = copy(terrain); display(erode!(terrain, erosion)); heatmap(terrain); end

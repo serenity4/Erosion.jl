@@ -2,26 +2,47 @@ module Erosion
 
 using Random: seed!, AbstractRNG, default_rng
 
-Base.@kwdef struct HydraulicErosion{RNG<:AbstractRNG}
-  gravity::Float64 = 9.81
-  iterations::Int64 = 10000
-  rng::RNG = default_rng()
-  seed::UInt64 = rand(UInt64)
-  timestep::Float64 = 1.0
+struct HydraulicErosion{RNG<:AbstractRNG}
+  gravity::Float64
+  iterations::Int64
+  rng::RNG
+  seed::UInt64
+  timestep::Float64
   # Minimum slope so that even flat terrains get eroded.
-  min_slope::Float64 = 0.01
-  erosion_factor::Float64 = 1.0
-  deposition_factor::Float64 = 1.0
-  evaporation::Float64 = 0.05
-  terrain_size::Tuple{Float64,Float64} = (1.0, 1.0)
+  min_slope::Float64
+  erosion_factor::Float64
+  deposition_factor::Float64
+  evaporation::Float64
+  terrain_size::Tuple{Float64,Float64}
   "Inertia in terms of direction taken by the droplet. Speed is not affected."
-  droplet_inertia::Float64 = 0.4
+  droplet_inertia::Float64
   "Minimum amount of sediment that is deposited (when possible) at every step."
-  droplet_min_deposited::Float64 = 0.01
-  droplet_capacity::Float64 = 1.0
-  droplet_effect_radius::Float64 = 0.02
-  droplet_max_steps::Int = 1000
-  droplet_min_speed::Float64 = 0.05
+  droplet_min_deposited::Float64
+  droplet_capacity::Float64
+  droplet_effect_radius::Float64
+  droplet_max_steps::Int
+  droplet_min_speed::Float64
+end
+
+function HydraulicErosion(;
+    gravity = 9.81,
+    iterations = 10000,
+    rng = default_rng(),
+    seed = rand(UInt64),
+    timestep = 1.0,
+    min_slope = 0.01,
+    erosion_factor = 1.0,
+    deposition_factor = 1.0,
+    evaporation = 0.05,
+    terrain_size = (1.0, 1.0),
+    droplet_inertia = 0.4,
+    droplet_min_deposited = 0.01,
+    droplet_capacity = 1.0,
+    droplet_effect_radius = 0.02,
+    droplet_max_steps = 1000,
+    droplet_min_speed = 0.05,
+  )
+  HydraulicErosion{typeof(rng)}(gravity, iterations, rng, seed, timestep, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
 end
 
 struct Droplet
@@ -199,16 +220,20 @@ function simulate!(terrain, model::HydraulicErosion, droplet::Droplet, units_per
     ## Some is deposited by evaporation, some is diffused along the way.
     sediment_capacity = water_amount * model.droplet_capacity
     (; carried_sediment) = droplet
-    evaporated_sediment = min(0, carried_sediment - sediment_capacity)
+    evaporated_sediment = max(0, carried_sediment - sediment_capacity)
     carried_sediment -= evaporated_sediment
     diffused_sediment = min(max(model.droplet_min_deposited, (1 - α)^2) / speed * model.erosion_factor * carried_sediment, carried_sediment)
     carried_sediment -= diffused_sediment
     deposited_sediment = min(evaporated_sediment + diffused_sediment, -Δh)
 
     ## Ablation by erosion.
-    eroded_sediment = (sediment_capacity - carried_sediment) * min(speed * model.erosion_factor, 1)
+    eroded_sediment = (droplet.water_amount * model.droplet_capacity - droplet.carried_sediment) * min(droplet.speed * model.erosion_factor, 1)
     carried_sediment += eroded_sediment
     carried_sediment = min(carried_sediment, sediment_capacity)
+
+    @assert deposited_sediment ≥ 0
+    @assert eroded_sediment ≥ 0
+    @assert carried_sediment ≥ 0
 
     ## Update neighboring terrain.
     fill_with_sediment!(terrain, position, to_cell, deposited_sediment)
@@ -218,6 +243,7 @@ function simulate!(terrain, model::HydraulicErosion, droplet::Droplet, units_per
       in_terrain(terrain, (u, v)) || continue
       weight = falloff_weights[1 + i - droplet_nx.start, 1 + j - droplet_ny.start]
       terrain[u, v] -= eroded_sediment * weight
+      # @assert terrain[u, v] ≥ 0 Main.@infiltrate
     end
 
     droplet = Droplet(position, direction, speed, carried_sediment, water_amount)
@@ -232,6 +258,7 @@ function fill_with_sediment!(terrain, position, cell::Cell, deposited_sediment)
 end
 
 function fill_with_sediment!(terrain, pixel, amount)
+  @assert amount ≥ 0
   terrain[pixel] += amount
 end
 
