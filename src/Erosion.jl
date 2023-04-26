@@ -7,9 +7,9 @@ struct HydraulicErosion{RNG<:AbstractRNG}
   iterations::Int64
   rng::RNG
   seed::UInt64
-  timestep::Float64
   # Minimum slope so that even flat terrains get eroded.
   min_slope::Float64
+  # Later we can compute this factor in a more dynamic way to control where erosion should occur.
   erosion_factor::Float64
   deposition_factor::Float64
   evaporation::Float64
@@ -29,7 +29,6 @@ function HydraulicErosion(;
     iterations = 10000,
     rng = default_rng(),
     seed = rand(UInt64),
-    timestep = 1.0,
     min_slope = 0.01,
     erosion_factor = 1.0,
     deposition_factor = 1.0,
@@ -42,7 +41,7 @@ function HydraulicErosion(;
     droplet_max_steps = 1000,
     droplet_min_speed = 0.05,
   )
-  HydraulicErosion{typeof(rng)}(gravity, iterations, rng, seed, timestep, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
+  HydraulicErosion{typeof(rng)}(gravity, iterations, rng, seed, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
 end
 
 struct Droplet
@@ -222,29 +221,39 @@ function simulate!(terrain, model::HydraulicErosion, droplet::Droplet, units_per
     (; carried_sediment) = droplet
     evaporated_sediment = max(0, carried_sediment - sediment_capacity)
     carried_sediment -= evaporated_sediment
-    diffused_sediment = min(max(model.droplet_min_deposited, (1 - α)^2) / speed * model.erosion_factor * carried_sediment, carried_sediment)
+    diffused_sediment = min(max(model.droplet_min_deposited, (1 - α)^2) / speed * model.deposition_factor * carried_sediment, carried_sediment)
     carried_sediment -= diffused_sediment
     deposited_sediment = min(evaporated_sediment + diffused_sediment, -Δh)
 
     ## Ablation by erosion.
-    eroded_sediment = (droplet.water_amount * model.droplet_capacity - droplet.carried_sediment) * min(droplet.speed * model.erosion_factor, 1)
-    carried_sediment += eroded_sediment
-    carried_sediment = min(carried_sediment, sediment_capacity)
+    erosion_strength = (droplet.water_amount * model.droplet_capacity - droplet.carried_sediment) * droplet.speed * model.erosion_factor
 
     @assert deposited_sediment ≥ 0
-    @assert eroded_sediment ≥ 0
     @assert carried_sediment ≥ 0
 
     ## Update neighboring terrain.
     fill_with_sediment!(terrain, position, to_cell, deposited_sediment)
     from_pixel = nearest(droplet.position)
+
+    eroded_sediment = 0.0
     for i in droplet_nx, j in droplet_ny
       u, v = (i, j) .+ from_pixel
       in_terrain(terrain, (u, v)) || continue
       weight = falloff_weights[1 + i - droplet_nx.start, 1 + j - droplet_ny.start]
-      terrain[u, v] -= eroded_sediment * weight
-      # @assert terrain[u, v] ≥ 0 Main.@infiltrate
+      hloc = terrain[u, v]
+      # Don't erode areas that are at a lower height than the current point.
+      h < hloc || continue
+      Δhloc = h - hloc
+      eroded = erosion_strength * weight * sqrt(-Δhloc)
+      eroded = min(eroded, -Δhloc)
+      terrain[u, v] -= eroded
+      @assert terrain[u, v] ≥ 0
+      eroded_sediment += eroded
     end
+
+    @assert eroded_sediment ≥ 0
+    carried_sediment += eroded_sediment
+    carried_sediment = min(carried_sediment, sediment_capacity)
 
     droplet = Droplet(position, direction, speed, carried_sediment, water_amount)
   end
@@ -263,9 +272,6 @@ function fill_with_sediment!(terrain, pixel, amount)
 end
 
 in_terrain(terrain, coords) = all(1 ≤ c ≤ n for (c, n) in zip(coords, size(terrain)))
-
-# Later we can compute this factor in a more dynamic way to control where erosion should occur.
-erosion_factor(model::HydraulicErosion, (x, y, z)) = model.erosion_factor
 
 function neighborhood(radius)
   upper_bound = Int.(ceil.(radius))

@@ -1,6 +1,8 @@
 using Erosion
 using Erosion: neighborhood, elliptic_falloff, ErosionMetrics, Cell, GridPosition, corners, bilinear_weights
 using Test
+using ProceduralNoise
+using Plots: heatmap
 
 @testset "Erosion.jl" begin
     @testset "Cell" begin
@@ -59,9 +61,6 @@ using Test
     end
 end
 
-using ProceduralNoise
-using Plots: heatmap
-
 resolution = (512, 512)
 scale = (2, 2) .^ 4
 coords = Tuple(0.0:1/r:(1.0 - 1.0/r) for r in resolution)
@@ -73,7 +72,8 @@ terrain = remap.(terrain, Ref((minimum(terrain), maximum(terrain))), Ref((0.0, 1
 
 heatmap(terrain)
 
-erosion = HydraulicErosion(iterations = 10000, droplet_effect_radius = 0.02, seed = 1)
+erosion = HydraulicErosion(iterations = 100000, droplet_effect_radius = 0.01, seed = 1, erosion_factor = 0.05, deposition_factor = 10)
 # result = erode!(copy(terrain), erosion)
+let terrain = copy(terrain); display(@profview(erode!(terrain, erosion))); end
 let terrain = copy(terrain); display(erode!(terrain, erosion)); heatmap(terrain); end
 display(heatmap(terrain)); let terrain = copy(terrain); display(erode!(terrain, erosion)); heatmap(terrain); end
