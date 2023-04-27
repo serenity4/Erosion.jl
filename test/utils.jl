@@ -1,7 +1,10 @@
-function generate_terrain(resolution)
+using Random: default_rng, seed!
+
+function generate_terrain(resolution; seed = rand(UInt64))
   scale = (2, 2) .^ 4
   coords = Tuple(0.0:1/r:(1.0 - 1.0/r) for r in resolution)
   grid = collect(Iterators.product(coords...))
+  seed!(default_rng(), seed)
   perlin = Perlin(scale)
   noise = Fractal(perlin, octaves = 8)
   terrain = noise.(grid)
@@ -15,7 +18,7 @@ function erode_and_save(A::Matrix, erosion::HydraulicErosion; terrain = "terrain
   A = copy(A)
   display(heatmap(A))
   save(terrain, A)
-  display(@time erode!(A, erosion))
+  display(@time erode!(A, erosion; progress = true))
   display(heatmap(A))
   save(eroded, A)
 end
