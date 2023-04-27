@@ -135,9 +135,7 @@ function erode!(terrain, model::HydraulicErosionV1; progress = false)
     code = simulate!(terrain, model, droplet, units_per_pixel, effect_radius, window, falloff_weights)
     codes[i] = code
   end
-  metrics = ErosionMetrics(codes)
-  progress && println(metrics)
-  metrics
+  ErosionMetrics(codes)
 end
 
 function interpolate_bilinear(A, (x, y), cell::Cell)
