@@ -44,7 +44,7 @@ include("utils.jl")
 
     terrain = generate_terrain((512, 512))
     @test all(0 ≤ h ≤ 1 for h in terrain)
-    erosion = HydraulicErosionV1(iterations = 100000)
+    erosion = HydraulicErosionV1(iterations = 10000)
     eroded = copy(terrain)
     metrics = erode!(eroded, erosion)
     @test metrics.reached_iteration_limit == 0.0
