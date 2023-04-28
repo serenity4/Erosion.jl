@@ -1,30 +1,11 @@
 using Erosion
-using Erosion: neighborhood, elliptic_falloff, ErosionMetrics, Cell, GridPosition, corners, bilinear_weights
+using Erosion: neighborhood, elliptic_falloff, ErosionMetricsV1
 using ProceduralNoise
 using Test
 
 include("utils.jl")
 
 @testset "Erosion.jl" begin
-    @testset "Cell" begin
-        position = (20.0, 30.0)
-        cell = Cell(position)
-        @test cell.bottom_left == GridPosition(position)
-        @test cell.bottom_right == GridPosition(position .+ (1, 0))
-        @test cell.top_left == GridPosition(position .+ (0, 1))
-        @test cell.top_right == GridPosition(position .+ 1)
-        weights = bilinear_weights(cell, position)
-        @test weights[1] == 1.0
-        @test sum(weights) == 1
-        @test all(≥(0), weights)
-        weights = bilinear_weights(cell, position .+ 0.5)
-        @test all(==(0.25), weights)
-        weights = bilinear_weights(cell, position .+ (0.13, 0.78))
-        @test sum(weights) == 1
-        @test all(≥(0), weights)
-        @test all(bilinear_weights(cell, corners(cell)[i])[i] == 1.0 for i in 1:4)
-    end
-
     @testset "Elliptic falloff" begin
         radius = (21.4, 24.9)
         nx, ny = neighborhood(radius)
@@ -57,7 +38,7 @@ include("utils.jl")
     end
 
     @testset "Erosion metrics" begin
-        metrics = ErosionMetrics(0.23, 0.1, 0.24, 0.465)
+        metrics = ErosionMetricsV1(0.23, 0.1, 0.24, 0.465)
         @test isa(repr(metrics), String)
     end
 

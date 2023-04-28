@@ -1,3 +1,12 @@
+"""
+Hyraulic erosion algorithm based on smoothed particle hydrodynamics.
+
+Lots of tiny droplets are spawned on the terrain, and simulated in space. As the droplets
+move from one cell to another, they erode the current cell and deposit sediment in the new cell.
+Every droplet may carry up to a certain amount of sediment, and may not erode nor deposit at full
+capacity at every step.
+The velocity of each droplet is controlled by the slope of the terrain, and a gravity factor.
+"""
 struct HydraulicErosionV1{RNG<:AbstractRNG} <: HydraulicErosion
   gravity::Float64
   iterations::Int64
@@ -62,57 +71,22 @@ function Base.rand(rng::AbstractRNG, sampler::DropletSampler)
   Droplet(position, (0.0, 0.0), 0.0, 0.0, 1.0)
 end
 
-struct GridPosition
-  coords::Tuple{Int,Int}
-end
-
-Base.iterate(pos::GridPosition, args...) = iterate(pos.coords, args...)
-Base.convert(::Type{GridPosition}, coords::Tuple{Int,Int}) = GridPosition(coords)
-
-struct Cell
-  bottom_left::GridPosition
-  bottom_right::GridPosition
-  top_right::GridPosition
-  top_left::GridPosition
-end
-
-Base.getindex(A::AbstractArray, gpos::GridPosition) = A[gpos.coords...]
-Base.setindex!(A::AbstractArray, value, gpos::GridPosition) = A[gpos.coords...] = value
-
-nearest((x, y)) = Int.(round.((x, y)))
-
-function Cell((x, y))
-  (i, j) = Int.(floor.((x, y)))
-  Cell((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
-end
-
-function bilinear_weights(cell::Cell, (x, y))
-  (cx, cy) = cell.bottom_left
-  w1 = (-(x - (1 + cx)) * -(y - (1 + cy)))
-  w2 = ((x - cx) * -(y - (1 + cy)))
-  w3 = (-(x - (1 + cx)) * (y - cy))
-  w4 = ((x - cx) * (y - cy))
-  (w1, w2, w3, w4)
-end
-
-corners(cell::Cell) = (cell.bottom_left, cell.bottom_right, cell.top_left, cell.top_right)
-
-struct ErosionMetrics
+struct ErosionMetricsV1
   reached_iteration_limit::Float64
   evaporated::Float64
   basin::Float64
   escaped::Float64
 end
 
-function ErosionMetrics(codes)
+function ErosionMetricsV1(codes)
   n = length(codes)
   results = (REACHED_ITERATION_LIMIT, EVAPORATED, BASIN, ESCAPED)
-  ErosionMetrics(ntuple(i -> count(==(results[i]), codes)/n, length(results))...)
+  ErosionMetricsV1(ntuple(i -> count(==(results[i]), codes)/n, length(results))...)
 end
 
-function Base.show(io::IO, metrics::ErosionMetrics)
-  print(io, ErosionMetrics, '(')
-  for (i, name) in enumerate(fieldnames(ErosionMetrics))
+function Base.show(io::IO, metrics::ErosionMetricsV1)
+  print(io, ErosionMetricsV1, '(')
+  for (i, name) in enumerate(fieldnames(ErosionMetricsV1))
     i > 1 && print(io, ", ")
     val = getproperty(metrics, name)
     print(io, name, " = ", round(100val; digits=2), '%')
@@ -135,23 +109,8 @@ function erode!(terrain, model::HydraulicErosionV1; progress = false)
     code = simulate!(terrain, model, droplet, units_per_pixel, effect_radius, window, falloff_weights)
     codes[i] = code
   end
-  ErosionMetrics(codes)
-end
-
-function interpolate_bilinear(A, (x, y), cell::Cell)
-  cx, cy = cell.bottom_left
-  nx0 = lerp(A[cell.bottom_left], A[cell.bottom_right], x - cx)
-  nx1 = lerp(A[cell.top_left], A[cell.top_right], x - cx)
-  lerp(nx0, nx1, y - cy)
-end
-
-lerp(x, y, w) = x * (1 - w) + y * w
-
-function estimate_gradient(A, (x, y), cell::Cell)
-  cx, cy = cell.bottom_left
-  gx = lerp(A[cell.bottom_right] - A[cell.bottom_left], A[cell.top_right] - A[cell.top_left], x - cx)
-  gy = lerp(A[cell.top_right] - A[cell.bottom_right], A[cell.top_left] - A[cell.bottom_left], y - cy)
-  (gx, gy)
+  progress && println()
+  ErosionMetricsV1(codes)
 end
 
 norm((x, y)) = hypot(x, y)
@@ -261,7 +220,7 @@ function simulate!(terrain, model::HydraulicErosionV1, droplet::Droplet, units_p
 end
 
 function fill_with_sediment!(terrain, position, cell::Cell, deposited_sediment)
-  for (corner, weight) in zip(corners(cell), bilinear_weights(cell, position))
+  for (corner, weight) in zip(cell, bilinear_weights(cell, position))
     fill_with_sediment!(terrain, corner, deposited_sediment * weight)
   end
 end
