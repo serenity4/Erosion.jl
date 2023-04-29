@@ -1,15 +1,49 @@
-using Erosion
-using ProceduralNoise
-using Plots: heatmap
-using Accessors
-using FileIO, ImageIO
+@testset "Version 1" begin
+  @testset "Elliptic falloff" begin
+      radius = (21.4, 24.9)
+      nx, ny = neighborhood(radius)
+      @test (nx, ny) == (-22:1:22, -25:1:25)
+      radius = (22, 22)
+      nx, ny = neighborhood(radius)
+      @test (nx, ny) == (-22:1:22, -22:1:22)
+      grid = tuple.(nx', ny)
+      n = length(grid)
+      ws = [elliptic_falloff((0.0, 0.0), point, radius) for point in grid]
+      @test count(iszero, ws) < 0.3n
+      @test elliptic_falloff((0.0, 0.0), (0.0, 0.0), radius) == 1.0
+      @test elliptic_falloff((0.0, 0.0), radius, radius) == 0.0
+      @test elliptic_falloff((0.0, 0.0), (0.0, radius[2]), radius) == 0.0
+      @test elliptic_falloff((0.0, 0.0), (0.0, radius[2] - 1), radius) > 0.0
+      @test elliptic_falloff((0.0, 0.0), (radius[1], 0.0), radius) == 0.0
+      @test elliptic_falloff((0.0, 0.0), (radius[1] - 1, 0.0), radius) > 0.0
 
-!(@isdefined generate_terrain) && includet("utils.jl")
+      radius = (22, 10)
+      grid = tuple.(nx', ny)
+      n = length(grid)
+      ws = [elliptic_falloff((0.0, 0.0), point, radius) for point in grid]
+      @test count(iszero, ws) > 0.6n
+      @test elliptic_falloff((0.0, 0.0), (0.0, 0.0), radius) == 1.0
+      @test elliptic_falloff((0.0, 0.0), radius, radius) == 0.0
+      @test elliptic_falloff((0.0, 0.0), (0.0, radius[2]), radius) == 0.0
+      @test elliptic_falloff((0.0, 0.0), (0.0, radius[2] - 1), radius) > 0.0
+      @test elliptic_falloff((0.0, 0.0), (radius[1], 0.0), radius) == 0.0
+      @test elliptic_falloff((0.0, 0.0), (radius[1] - 1, 0.0), radius) > 0.0
+  end
 
-# terrain = generate_terrain((512, 512))
-terrain = generate_terrain((1024, 1024), seed = 4)
-# heatmap(terrain)
+  @testset "Erosion metrics" begin
+      metrics = ErosionMetricsV1(0.23, 0.1, 0.24, 0.465)
+      @test isa(repr(metrics), String)
+  end
 
-erosion = HydraulicErosionV1(iterations = 400000, droplet_effect_radius = 0.01, seed = 1, erosion_factor = 0.02, droplet_inertia = 0.6, deposition_factor = 2, droplet_capacity = 2, terrain_size = (2.0, 2.0))
-
-erode_and_save(terrain, erosion; terrain = "terrain_v1.png", eroded = "eroded_v1.png")
+  terrain = generate_terrain((512, 512))
+  @test all(0 ≤ h ≤ 1 for h in terrain)
+  erosion = HydraulicErosionV1(iterations = 10000)
+  eroded = copy(terrain)
+  metrics = erode!(eroded, erosion)
+  @test metrics.reached_iteration_limit == 0.0
+  @test metrics.evaporated < 0.1
+  @test metrics.basin > 0.9
+  @test metrics.escaped > 0.001
+  @test eroded ≠ terrain
+  @test all(0 ≤ h ≤ 1 for h in eroded)
+end
