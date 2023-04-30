@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../GridHelpers"
+    },
+    {
+      "path": "../ProceduralNoise"
+    }
+  ],
+  "settings": {
+    "julia.environmentPath": "/home/belmant/.julia/dev/Erosion"
+  }
+}

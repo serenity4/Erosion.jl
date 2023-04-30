@@ -45,13 +45,17 @@ function erode!(terrain, water, water_flow, velocity, sediment, model::Hydraulic
   seed!(model.rng, model.seed)
   rainfall = rainfall_map(size(terrain))
   for t in time_range(model)
-    add_water!(water, model, rainfall, execution)
-    simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
-    # erode_and_deposit!(terrain, model, velocity, execution)
-    # transport_sediment!(sediment, model, velocity, execution)
-    # evaporate!(water, model, execution)
+    erode!(terrain, water, water_flow, velocity, sediment, t, model, rainfall; execution)
   end
   terrain
+end
+
+function erode!(terrain, water, water_flow, velocity, sediment, t::Number, model::HydraulicErosionV2, rainfall; execution = CPU(model))
+  add_water!(water, model, rainfall, execution)
+  simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
+  # erode_and_deposit!(terrain, model, velocity, execution)
+  # transport_sediment!(sediment, model, velocity, execution)
+  # evaporate!(water, model, execution)
 end
 
 CPU(model::HydraulicErosionV2) = CPU(nothing)
@@ -101,7 +105,6 @@ end
 column_area(model) = model.terrain_scale ^ 2
 
 neighbors(point::GridPoint) = @SVector [point.left, point.right, point.bottom, point.top]
-is_outside_grid(point::GridPoint, (ni, nj)) = point[1] in (0, 1 + ni) || point[2] in (0, 1 + nj)
 
 function computer_water_height_and_velocity!(water, velocity, model, water_flow, ::CPU)
   ni, nj = size(water_flow)
