@@ -15,24 +15,32 @@ Simulation steps are as follows:
 struct HydraulicErosionV2{RNG<:AbstractRNG} <: HydraulicErosion
   gravity::Float64 # in m/s²
   duration::Int64 # in seconds
+  dissolution_constant::Float64
+  deposition_constant::Float64
   rng::RNG
   seed::UInt64
   terrain_scale::Float64 # in meter per pixel
   evaporation::Float64 # in m²/s
   rain_amount::Float64
+  sediment_transport_capacity_factor::Float64
+  minimum_sediment_transport_capacity::Float64
   timestep::Float64
 end
 
 function HydraulicErosionV2(duration;
     gravity = 9.81,
+    dissolution_constant = 1.0,
+    deposition_constant = 1.0,
     rng = default_rng(),
     seed = rand(UInt64),
     terrain_scale = 5.0,
     evaporation = 0.001,
     rain_amount = 0.1,
+    sediment_transport_capacity_factor = 0.01,
+    minimum_sediment_transport_capacity = 0.01,
     timestep = choose_timestep_cfl(terrain_scale),
   )
-  HydraulicErosionV2{typeof(rng)}(gravity, duration, rng, seed, terrain_scale, evaporation, rain_amount, timestep)
+  HydraulicErosionV2{typeof(rng)}(gravity, duration, dissolution_constant, deposition_constant, rng, seed, terrain_scale, evaporation, rain_amount, sediment_transport_capacity_factor, minimum_sediment_transport_capacity, timestep)
 end
 
 # The timestep is chosen based on the CFL condition 
@@ -53,7 +61,7 @@ end
 function erode!(terrain, water, water_flow, velocity, sediment, t::Number, model::HydraulicErosionV2, rainfall; execution = CPU(model))
   add_water!(water, model, rainfall, execution)
   simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
-  # erode_and_deposit!(terrain, model, velocity, execution)
+  erode_and_deposit!(terrain, sediment, model, velocity, execution)
   # transport_sediment!(sediment, model, velocity, execution)
   # evaporate!(water, model, execution)
 end
@@ -142,6 +150,35 @@ average_flow_y(water_flow, point) = input_flow(water_flow, point.left) - output_
 
 function water_velocity(point::GridPoint, model::HydraulicErosionV2, water, water_flow, prev_height)
   flow_change = ntuple(direction -> average_flow(water_flow, point, direction), 2)
-  average_height = (prev_height + water[point] ) / 2
+  average_height = (prev_height + water[point]) / 2
+  isapprox(average_height, zero(average_height); atol = 1e-5) && return @SVector zeros(Float64, 2)
   flow_change ./ (model.terrain_scale * average_height)
+end
+
+function erode_and_deposit!(terrain, sediment, model, velocity, ::CPU)
+  ni, nj = size(terrain)
+  for j in 1:nj, i in 1:ni
+    erode_and_deposit!(terrain, sediment, GridPoint(i, j), model, velocity)
+  end
+end
+
+function erode_and_deposit!(terrain, sediment, point::GridPoint, model::HydraulicErosionV2, velocity)
+  α = tilt_angle(terrain, point, model)
+  sediment_transport_capacity = norm(velocity[point]) * model.sediment_transport_capacity_factor * sin(α)
+  sediment_transport_capacity = max(sediment_transport_capacity, model.minimum_sediment_transport_capacity)
+  if sediment_transport_capacity > sediment[point]
+    dissolved_sediment = model.dissolution_constant * (sediment_transport_capacity - sediment[point])
+    terrain[point] -= dissolved_sediment
+    sediment[point] += dissolved_sediment
+  else
+    deposited_sediment = model.deposition_constant * (sediment[point] - sediment_transport_capacity)
+    terrain[point] += deposited_sediment
+    sediment[point] -= deposited_sediment
+  end
+end
+
+function tilt_angle(terrain, point, model)
+  gradient = estimate_gradient(terrain, point, size(terrain))
+  Δh = norm(gradient)
+  atan(-Δh, model.terrain_scale)
 end
