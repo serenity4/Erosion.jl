@@ -19,15 +19,33 @@ seed = 1
   water, water_flow, velocity, sediment = initialize_maps(terrain)
   erode!(terrain, water, water_flow, velocity, sediment, model)
   @test !allequal(water) && !allequal(water_flow) && !allequal(velocity)
+  @test all(all(x .≥ 0) for x in water_flow)
+  @test all(0 .≤ terrain .≤ 1)
+  @test all(0 .≤ water .≤ 1)
+
+  model = HydraulicErosionV2(10.0)
+  terrain = generate_terrain((512, 512); seed)
+  water, water_flow, velocity, sediment = initialize_maps(terrain)
+  erode!(terrain, water, water_flow, velocity, sediment, model)
+  @test !allequal(water) && !allequal(water_flow) && !allequal(velocity)
+  @test all(all(x .≥ 0) for x in water_flow)
+  @test all(0 .≤ terrain .≤ 1)
+  @test all(0 .≤ water .≤ 1)
 end
 
 using Plots
 
 terrain = generate_terrain((512, 512); seed)
 water, water_flow, velocity, sediment = initialize_maps(terrain)
-model = HydraulicErosionV2(10.0)
+model = HydraulicErosionV2(1.0)
 rainfall = rainfall_map(size(terrain))
-@gif for time in time_range(model)
-  erode!(terrain, water, water_flow, velocity, sediment, time, model, rainfall)
-  heatmap(water)
-end
+erode!(terrain, water, water_flow, velocity, sediment, model)
+heatmap(terrain)
+heatmap(water)
+heatmap(norm.(velocity))
+
+# See https://github.com/JuliaIO/FFMPEG.jl/issues/53
+# @gif for time in time_range(model)
+#   erode!(terrain, water, water_flow, velocity, sediment, time, model, rainfall)
+#   heatmap(water)
+# end

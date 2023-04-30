@@ -81,7 +81,9 @@ end
 
 function water_flows(water_flow, point::GridPoint, model::HydraulicErosionV2, terrain, water)
   d = water[point]
-  combined_flows = water_flow[point] # every value is a 4-dimensional vector packing flows with left, right, top and bottom cells.
+  # Consider there to be no water at all (and subsequently no flow) when water height is < 0.01 mm
+  combined_flows = water_flow[point] # every value is a 4-dimensional vector packing flows with left, right, bottom and top cells.
+  isapprox(d, zero(d); atol = 1e-5) && return @SVector zeros(Float64, 4)
   components = map(enumerate(neighbors(point))) do (i, adj)
     is_outside_grid(adj, size(water_flow)) && return 0.0
     prev_flow = combined_flows[i]
@@ -92,7 +94,7 @@ function water_flows(water_flow, point::GridPoint, model::HydraulicErosionV2, te
     # Let's take that same distance for the pipe width, and multiply by the smallest water height.
     # Yes, that means pipes are variable depending on the water level.
     # We'd want large pipes for an ocean, and tiny pipes for shallow streams.
-    pipe_cross_section = pipe_length * min(d + dadj)
+    pipe_cross_section = pipe_length * min(d, dadj)
     flow = prev_flow + model.timestep * pipe_cross_section/pipe_length * model.gravity * Δh
     max(zero(flow), flow)
   end
