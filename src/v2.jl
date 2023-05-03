@@ -36,8 +36,8 @@ function HydraulicErosionV2(duration;
     terrain_scale = 5.0,
     evaporation = 0.1,
     rain_amount = 0.1,
-    sediment_transport_capacity_factor = 0.01,
-    minimum_sediment_transport_capacity = 0.01,
+    sediment_transport_capacity_factor = 1.0,
+    minimum_sediment_transport_capacity = 0.0001,
     timestep = choose_timestep_cfl(terrain_scale),
   )
   HydraulicErosionV2{typeof(rng)}(gravity, duration, dissolution_constant, deposition_constant, rng, seed, terrain_scale, evaporation, rain_amount, sediment_transport_capacity_factor, minimum_sediment_transport_capacity, timestep)
@@ -181,5 +181,5 @@ end
 function tilt_angle(terrain, point, model)
   gradient = estimate_gradient(terrain, point, size(terrain))
   Δh = norm(gradient)
-  atan(-Δh, model.terrain_scale)
+  atan(Δh, sign(Δh))
 end
