@@ -34,7 +34,7 @@ function HydraulicErosionV2(duration;
     rng = default_rng(),
     seed = rand(UInt64),
     terrain_scale = 5.0,
-    evaporation = 0.001,
+    evaporation = 0.1,
     rain_amount = 0.1,
     sediment_transport_capacity_factor = 0.01,
     minimum_sediment_transport_capacity = 0.01,
@@ -63,12 +63,13 @@ function erode!(terrain, water, water_flow, velocity, sediment, t::Number, model
   simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
   erode_and_deposit!(terrain, sediment, model, velocity, execution)
   # transport_sediment!(sediment, model, velocity, execution)
-  # evaporate!(water, model, execution)
+  evaporate!(water, model, execution)
 end
 
 CPU(model::HydraulicErosionV2) = CPU(nothing)
 rainfall_map(resolution) = Fractal{Perlin}((2, 2) .^ 4)(resolution)
 add_water!(water, model, rainfall, ::CPU) = water .+= rainfall .* model.timestep .* model.rain_amount
+evaporate!(water, model, ::CPU) = water .*= (1 - model.evaporation * model.timestep)
 
 function simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
   compute_water_flows!(water_flow, model, terrain, water, execution)
