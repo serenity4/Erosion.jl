@@ -62,7 +62,7 @@ function erode!(terrain, water, water_flow, velocity, sediment, t::Number, model
   add_water!(water, model, rainfall, execution)
   simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
   erode_and_deposit!(terrain, sediment, model, velocity, execution)
-  # transport_sediment!(sediment, model, velocity, execution)
+  transport_sediment!(sediment, model, velocity, execution)
   evaporate!(water, model, execution)
 end
 
@@ -182,4 +182,13 @@ function tilt_angle(terrain, point, model)
   gradient = estimate_gradient(terrain, point, size(terrain))
   Δh = norm(gradient)
   atan(Δh, sign(Δh))
+end
+
+transport_sediment!(sediment, model, velocity, ::CPU) = update_with_loop!(point -> transport_sediment(sediment, point, model, velocity), sediment)
+
+function transport_sediment(sediment, point::GridPoint, model::HydraulicErosionV2, velocity)
+  prev = point[] .+ velocity[point] .* model.timestep
+  bounds = size(sediment)
+  is_outside_grid(prev, bounds) && return sediment[point]
+  interpolate_bilinear(sediment, prev, Cell(prev, bounds))
 end
