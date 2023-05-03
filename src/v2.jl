@@ -35,7 +35,7 @@ function HydraulicErosionV2(duration;
     seed = rand(UInt64),
     terrain_scale = 5.0,
     evaporation = 0.1,
-    rain_amount = 0.1,
+    rain_amount = 0.02,
     sediment_transport_capacity_factor = 1.0,
     minimum_sediment_transport_capacity = 0.0001,
     timestep = choose_timestep_cfl(terrain_scale),
@@ -78,9 +78,12 @@ end
 
 function update_with_loop!(f, A)
   ni, nj = size(A)
-  for j in 1:nj, i in 1:ni
-    point = GridPoint(i, j)
-    A[point] = f(point)
+  # Threads.@threads for j in 1:nj
+  for j in 1:nj
+    for i in 1:ni
+      point = GridPoint(i, j)
+      A[point] = f(point)
+    end
   end
 end
 
@@ -107,6 +110,7 @@ function water_flows(water_flow, point::GridPoint, model::HydraulicErosionV2, te
     flow = prev_flow + model.timestep * pipe_cross_section/pipe_length * model.gravity * Δh
     max(zero(flow), flow)
   end
+  all(isapprox(x, zero(x), atol = 1e-5) for x in components) && return @SVector zeros(Float64, 4)
   # Add a scaling factor to avoid having negative water values when taking incoming flows into consideration.
   column_volume = d * column_area(model)
   K = min(1, column_volume / (sum(components) * model.timestep))
@@ -119,11 +123,14 @@ neighbors(point::GridPoint) = @SVector [point.left, point.right, point.bottom, p
 
 function computer_water_height_and_velocity!(water, velocity, model, water_flow, ::CPU)
   ni, nj = size(water_flow)
-  for j in 1:nj, i in 1:ni
-    point = GridPoint(i, j)
-    prev_height = water[point]
-    water[point] = water_height(water, point, model, water_flow)
-    velocity[point] = water_velocity(point, model, water, water_flow, prev_height)
+  # Threads.@threads for j in 1:nj
+  for j in 1:nj
+    for i in 1:ni
+      point = GridPoint(i, j)
+      prev_height = water[point]
+      water[point] = water_height(water, point, model, water_flow)
+      velocity[point] = water_velocity(point, model, water, water_flow, prev_height)
+    end
   end
 end
 
@@ -158,8 +165,11 @@ end
 
 function erode_and_deposit!(terrain, sediment, model, velocity, ::CPU)
   ni, nj = size(terrain)
-  for j in 1:nj, i in 1:ni
-    erode_and_deposit!(terrain, sediment, GridPoint(i, j), model, velocity)
+  # Threads.@threads for j in 1:nj
+  for j in 1:nj
+    for i in 1:ni
+      erode_and_deposit!(terrain, sediment, GridPoint(i, j), model, velocity)
+    end
   end
 end
 
