@@ -19,7 +19,8 @@ struct HydraulicErosionV2{RNG<:AbstractRNG} <: HydraulicErosion
   deposition_constant::Float64
   rng::RNG
   seed::UInt64
-  terrain_scale::Float64 # in meter per pixel
+  terrain_scale::Float64 # in meters per pixel
+  height_scale::Float64 # in meters per unit
   evaporation::Float64 # in m²/s
   rain_amount::Float64
   sediment_transport_capacity_factor::Float64
@@ -35,35 +36,53 @@ function HydraulicErosionV2(duration;
     seed = rand(UInt64),
     terrain_scale = 5.0,
     evaporation = 0.1,
+    height_scale = 700.0,
     rain_amount = 0.02,
     sediment_transport_capacity_factor = 1.0,
     minimum_sediment_transport_capacity = 0.0001,
     timestep = choose_timestep_cfl(terrain_scale),
   )
-  HydraulicErosionV2{typeof(rng)}(gravity, duration, dissolution_constant, deposition_constant, rng, seed, terrain_scale, evaporation, rain_amount, sediment_transport_capacity_factor, minimum_sediment_transport_capacity, timestep)
+  HydraulicErosionV2{typeof(rng)}(gravity, duration, dissolution_constant, deposition_constant, rng, seed, terrain_scale, height_scale, evaporation, rain_amount, sediment_transport_capacity_factor, minimum_sediment_transport_capacity, timestep)
 end
 
 # The timestep is chosen based on the CFL condition 
-ESTIMATED_MAX_VELOCITY = 10.0 # in m/s
-choose_timestep_cfl(terrain_scale) = (terrain_scale / ESTIMATED_MAX_VELOCITY) ^ 2
+ESTIMATED_MAX_VELOCITY = 30.0 # in m/s
+choose_timestep_cfl(terrain_scale) = terrain_scale / ESTIMATED_MAX_VELOCITY
 
 time_range(model::HydraulicErosionV2) = zero(model.duration):model.timestep:model.duration
 
-function erode!(terrain, water, water_flow, velocity, sediment, model::HydraulicErosionV2; execution = CPU(model))
+erode!(terrain, model::HydraulicErosionV2; execution = CPU(model), progress = false) = erode!(terrain, initialize_maps(typeof(model), terrain)..., model; execution, progress)
+
+function initialize_maps(::Type{<:HydraulicErosionV2}, terrain)
+  water = zeros(size(terrain))
+  water_flow = zeros(SVector{4,Float64}, size(terrain))
+  velocity = zeros(SVector{2,Float64}, size(terrain))
+  sediment = zeros(size(terrain))
+  water, water_flow, velocity, sediment
+end
+
+function erode!(terrain, water, water_flow, velocity, sediment, model::HydraulicErosionV2; execution = CPU(model), progress = false)
   seed!(model.rng, model.seed)
   rainfall = rainfall_map(size(terrain))
   for t in time_range(model)
-    erode!(terrain, water, water_flow, velocity, sediment, t, model, rainfall; execution)
+    progress && print("\r$(Base.text_colors[:green])HydraulicErosionV2$(Base.text_colors[:default]): timestep $(round(t; digits = 1))/$(model.duration)                       ")
+    erode!(terrain, water, water_flow, velocity, sediment, model, t, rainfall; execution)
   end
   terrain
 end
 
-function erode!(terrain, water, water_flow, velocity, sediment, t::Number, model::HydraulicErosionV2, rainfall; execution = CPU(model))
+mean(A) = sum(x -> x^2, A)/length(A)
+stats(A) = string("minimum = ", minimum(A), ", mean = ", mean(A), ", maximum = ", maximum(A))
+
+function erode!(terrain, water, water_flow, velocity, sediment, model::HydraulicErosionV2, t::Number, rainfall = rainfall_map(size(terrain)); execution = CPU(model))
   add_water!(water, model, rainfall, execution)
+  # @show stats(water)
   simulate_shallow_water_flow!(water_flow, water, velocity, model, terrain, execution)
+  # @show stats(norm.(water_flow)) stats(norm.(velocity)) stats(water)
   erode_and_deposit!(terrain, sediment, model, velocity, execution)
   transport_sediment!(sediment, model, velocity, execution)
   evaporate!(water, model, execution)
+  # @show stats(terrain) stats(sediment)
 end
 
 CPU(model::HydraulicErosionV2) = CPU(nothing)
@@ -112,12 +131,9 @@ function water_flows(water_flow, point::GridPoint, model::HydraulicErosionV2, te
   end
   all(isapprox(x, zero(x), atol = 1e-5) for x in components) && return @SVector zeros(Float64, 4)
   # Add a scaling factor to avoid having negative water values when taking incoming flows into consideration.
-  column_volume = d * column_area(model)
-  K = min(1, column_volume / (sum(components) * model.timestep))
+  K = min(1, d * model.terrain_scale^2 / (sum(components) * model.timestep))
   K .* components
 end
-
-column_area(model) = model.terrain_scale ^ 2
 
 neighbors(point::GridPoint) = @SVector [point.left, point.right, point.bottom, point.top]
 
@@ -137,14 +153,16 @@ end
 function water_height(water, point::GridPoint, model::HydraulicErosionV2, water_flow)
   flow_in = sum(ntuple(i -> input_flow(water_flow, point, i), 4))
   flow_out = sum(water_flow[point])
+  @assert all(≥(0), flow_in)
+  @assert all(≥(0), flow_out)
   volume_change = model.timestep * (flow_in - flow_out)
-  water[point] + volume_change / column_area(model)
+  water[point] + volume_change / model.terrain_scale^2
 end
 
 function input_flow(water_flow, point, i)
   adj = neighbor(point, i)
   is_outside_grid(adj, size(water_flow)) && return 0.0
-  -output_flow(water_flow, adj, reverse_adjacency_index(i))
+  output_flow(water_flow, adj, reverse_adjacency_index(i))
 end
 
 output_flow(water_flow, point, i) = water_flow[point][i]
@@ -157,9 +175,9 @@ average_flow(water_flow, point, direction) = (net_flow(water_flow, point, direct
 average_flow_y(water_flow, point) = input_flow(water_flow, point.left) - output_flow(water_flow, point, 1)
 
 function water_velocity(point::GridPoint, model::HydraulicErosionV2, water, water_flow, prev_height)
-  flow_change = ntuple(direction -> average_flow(water_flow, point, direction), 2)
   average_height = (prev_height + water[point]) / 2
   isapprox(average_height, zero(average_height); atol = 1e-5) && return @SVector zeros(Float64, 2)
+  flow_change = ntuple(direction -> average_flow(water_flow, point, direction), 2)
   flow_change ./ (model.terrain_scale * average_height)
 end
 
@@ -192,6 +210,7 @@ function tilt_angle(terrain, point, model)
   gradient = estimate_gradient(terrain, point, size(terrain))
   Δh = norm(gradient)
   atan(Δh, sign(Δh))
+  # atan(Δh * model.height_scale / model.terrain_scale ^ 2, sign(Δh))
 end
 
 transport_sediment!(sediment, model, velocity, ::CPU) = update_with_loop!(point -> transport_sediment(sediment, point, model, velocity), sediment)
