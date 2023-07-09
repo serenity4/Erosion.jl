@@ -31,19 +31,19 @@
   end
 
   @testset "Erosion metrics" begin
-      metrics = ErosionMetricsV1(0.23, 0.1, 0.24, 0.465)
+      metrics = ParticleMetrics(0.23, 0.1, 0.24, 0.465)
       @test isa(repr(metrics), String)
   end
 
   terrain = generate_terrain((512, 512))
   @test all(0 ≤ h ≤ 1 for h in terrain)
-  erosion = HydraulicErosionV1(iterations = 10000)
-  eroded = copy(terrain)
-  metrics = erode!(eroded, erosion)
+  model = ParticleBasedErosion(iterations = 10000)
+  result = erode(terrain, model)
+  metrics = result.data
   @test metrics.reached_iteration_limit == 0.0
   @test metrics.evaporated < 0.1
   @test metrics.basin > 0.9
   @test metrics.escaped > 0.001
-  @test eroded ≠ terrain
-  @test all(0 ≤ h ≤ 1 for h in eroded)
-end
+  @test result.terrain ≠ terrain
+  @test all(0 ≤ h ≤ 1 for h in result.terrain)
+end;

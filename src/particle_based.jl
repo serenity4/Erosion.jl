@@ -7,7 +7,7 @@ Every droplet may carry up to a certain amount of sediment, and may not erode no
 capacity at every step.
 The velocity of each droplet is controlled by the slope of the terrain, and a gravity factor.
 """
-struct HydraulicErosionV1{RNG<:AbstractRNG} <: HydraulicErosion
+struct ParticleBasedErosion{RNG<:AbstractRNG} <: ErosionModel{CPU}
   gravity::Float64
   iterations::Int64
   rng::RNG
@@ -29,9 +29,9 @@ struct HydraulicErosionV1{RNG<:AbstractRNG} <: HydraulicErosion
   droplet_min_speed::Float64
 end
 
-HydraulicErosionV1(gravity, iterations, rng, args...) = HydraulicErosionV1{typeof(rng)}(gravity, iterations, rng, args...)
+ParticleBasedErosion(gravity, iterations, rng, args...) = ParticleBasedErosion{typeof(rng)}(gravity, iterations, rng, args...)
 
-function HydraulicErosionV1(;
+function ParticleBasedErosion(;
     gravity = 9.81,
     iterations = 10000,
     rng = default_rng(),
@@ -48,7 +48,7 @@ function HydraulicErosionV1(;
     droplet_max_steps = 1000,
     droplet_min_speed = 0.05,
   )
-  HydraulicErosionV1(gravity, iterations, rng, seed, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
+  ParticleBasedErosion(gravity, iterations, rng, seed, min_slope, erosion_factor, deposition_factor, evaporation, terrain_size, droplet_inertia, droplet_min_deposited, droplet_capacity, droplet_effect_radius, droplet_max_steps, droplet_min_speed)
 end
 
 struct Droplet
@@ -71,22 +71,22 @@ function Base.rand(rng::AbstractRNG, sampler::DropletSampler)
   Droplet(position, (0.0, 0.0), 0.0, 0.0, 1.0)
 end
 
-struct ErosionMetricsV1
+struct ParticleMetrics
   reached_iteration_limit::Float64
   evaporated::Float64
   basin::Float64
   escaped::Float64
 end
 
-function ErosionMetricsV1(codes)
+function ParticleMetrics(codes)
   n = length(codes)
   results = (REACHED_ITERATION_LIMIT, EVAPORATED, BASIN, ESCAPED)
-  ErosionMetricsV1(ntuple(i -> count(==(results[i]), codes)/n, length(results))...)
+  ParticleMetrics(ntuple(i -> count(==(results[i]), codes)/n, length(results))...)
 end
 
-function Base.show(io::IO, metrics::ErosionMetricsV1)
-  print(io, ErosionMetricsV1, '(')
-  for (i, name) in enumerate(fieldnames(ErosionMetricsV1))
+function Base.show(io::IO, metrics::ParticleMetrics)
+  print(io, ParticleMetrics, '(')
+  for (i, name) in enumerate(fieldnames(ParticleMetrics))
     i > 1 && print(io, ", ")
     val = getproperty(metrics, name)
     print(io, name, " = ", round(100val; digits=2), '%')
@@ -94,7 +94,9 @@ function Base.show(io::IO, metrics::ErosionMetricsV1)
   print(io, ')')
 end
 
-function erode!(terrain, model::HydraulicErosionV1; progress = false)
+execution_state(erosion::ParticleBasedErosion, _) = nothing
+
+function erode!(terrain, ::Nothing, model::ParticleBasedErosion; progress = false)
   seed!(model.rng, model.seed)
   codes = DropletResult[]
   units_per_pixel = model.terrain_size ./ size(terrain)
@@ -104,13 +106,13 @@ function erode!(terrain, model::HydraulicErosionV1; progress = false)
   falloff_weights ./= sum(falloff_weights)
   codes = Vector{DropletResult}(undef, model.iterations)
   for i in 1:model.iterations
-    i % 1000 == 0 && progress && print("\r$(Base.text_colors[:green])HydraulicErosionV1$(Base.text_colors[:default]): droplet $i/$(model.iterations)                       ")
+    i % 1000 == 0 && progress && print("\r$(Base.text_colors[:green])ParticleBasedErosion$(Base.text_colors[:default]): droplet $i/$(model.iterations)                       ")
     droplet = rand(model.rng, DropletSampler(size(terrain), i))
     code = simulate!(terrain, model, droplet, units_per_pixel, effect_radius, window, falloff_weights)
     codes[i] = code
   end
   progress && println()
-  ErosionMetricsV1(codes)
+  ErosionResult(terrain, ParticleMetrics(codes))
 end
 
 norm((x, y)) = hypot(x, y)
@@ -130,7 +132,7 @@ EVAPORATED
 "Reached a pit that the droplet could not completely fill with sediment."
 BASIN
 
-function simulate!(terrain, model::HydraulicErosionV1, droplet::Droplet, units_per_pixel, effect_radius, (droplet_nx, droplet_ny), falloff_weights)
+function simulate!(terrain, model::ParticleBasedErosion, droplet::Droplet, units_per_pixel, effect_radius, (droplet_nx, droplet_ny), falloff_weights)
   for _ in 1:model.droplet_max_steps
     # Evaporation.
     water_amount = droplet.water_amount * (1 - model.evaporation)

@@ -15,18 +15,18 @@ function generate_terrain(resolution; seed = rand(UInt64))
 end
 
 # Requires loading Plots: heatmap; FileIO; ImageIO.
-function erode_and_save(A::Matrix, erosion::HydraulicErosion; terrain = "terrain.png", eroded = "eroded.png")
+function erode_and_save(A::Matrix, model::ErosionModel; terrain = "terrain.png", eroded = "eroded.png")
   !isabspath(terrain) && (terrain = joinpath(@__DIR__, terrain))
   !isabspath(eroded) && (eroded = joinpath(@__DIR__, eroded))
-  A = copy(A)
   display(heatmap(A))
   save(terrain, A)
-  display(@time erode!(A, erosion; progress = true))
-  display(heatmap(A))
-  low, high = extrema(A)
+  result = @time erode(A, model; progress = true)
+  B = result.terrain
+  display(heatmap(B))
+  low, high = extrema(B)
   if low < 0 || high > 1
     @warn "Terrain values fall outside [0, 1] (min: $low, max: $high), clamping"
-    clamp!(A, 0, 1)
+    clamp!(B, 0, 1)
   end
-  save(eroded, A)
+  save(eroded, B)
 end
