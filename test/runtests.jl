@@ -7,5 +7,5 @@ include("utils.jl")
 
 @testset "Erosion.jl" begin
     include("particle_based.jl")
-    include("v2.jl")
+    include("simulation_based.jl")
 end;

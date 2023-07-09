@@ -8,8 +8,8 @@ using ProceduralNoise: Fractal, Perlin
 include("api.jl")
 
 include("particle_based.jl")
-include("v2.jl")
+include("simulation_based.jl")
 
-export ErosionModel, erode, ParticleBasedErosion, HydraulicErosionV2
+export ErosionModel, erode, ParticleBasedErosion, SimulationBasedErosion
 
 end

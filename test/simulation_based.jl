@@ -5,7 +5,7 @@ using Erosion: time_range, rainfall_map, SimulationMaps, erode!
 seed = 1
 
 @testset "Version 2" begin
-  model = HydraulicErosionV2(1.0)
+  model = SimulationBasedErosion(1.0)
   @test model.timestep < 0.25
   terrain = generate_terrain((512, 512); seed)
   result = erode(terrain, model)
@@ -17,7 +17,7 @@ seed = 1
   @test all(all(.!(isnan.(x))) for x in velocity)
   @test all(0 .≤ sediment .≤ 1)
 
-  model = HydraulicErosionV2(10.0)
+  model = SimulationBasedErosion(10.0)
   terrain = generate_terrain((512, 512); seed)
   result = erode(terrain, model)
   (; water, water_flow, velocity, sediment) = result.data

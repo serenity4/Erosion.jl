@@ -6,8 +6,8 @@ using FileIO, ImageIO
 seed = 4
 
 terrain = generate_terrain((512, 512); seed)
-model = HydraulicErosionV2(20.0)
-model = HydraulicErosionV2(20.0; dissolution_constant = 1.9, deposition_constant = 1.9)
+model = SimulationBasedErosion(20.0)
+model = SimulationBasedErosion(20.0; dissolution_constant = 1.9, deposition_constant = 1.9)
 display(heatmap(terrain))
 result = erode(terrain, model; progress = true)
 (; water, water_flow, velocity, sediment) = result.data
@@ -25,6 +25,6 @@ heatmap(sediment)
 # end
 
 terrain = generate_terrain((512, 512); seed)
-model = HydraulicErosionV2(20.0; dissolution_constant = 1.9, deposition_constant = 1.9)
+model = SimulationBasedErosion(20.0; dissolution_constant = 1.9, deposition_constant = 1.9)
 
 erode_and_save(terrain, model; terrain = "examples/terrain_2.png", eroded = "examples/eroded_2.png")
