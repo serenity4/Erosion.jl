@@ -1,4 +1,4 @@
-@testset "Version 1" begin
+@testset "Particle-based erosion" begin
   @testset "Elliptic falloff" begin
       radius = (21.4, 24.9)
       nx, ny = neighborhood(radius)

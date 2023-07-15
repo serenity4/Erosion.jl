@@ -1,15 +1,19 @@
 module Erosion
 
+using GeometryExperiments
 using StaticArrays
 using GridHelpers: Cell, GridPoint, interpolate_bilinear, bilinear_weights, estimate_gradient, nearest, neighbor, is_outside_grid
 using Random: seed!, AbstractRNG, default_rng
 using ProceduralNoise: Fractal, Perlin
+using MLStyle
 
 include("api.jl")
 
 include("particle_based.jl")
 include("simulation_based.jl")
+include("uplift.jl")
+include("tectonic_based.jl")
 
-export ErosionModel, erode, ParticleBasedErosion, SimulationBasedErosion
+export ErosionModel, erode, ParticleBasedErosion, SimulationBasedErosion, UpliftPrimitive, uplift
 
 end

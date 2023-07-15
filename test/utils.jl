@@ -2,10 +2,22 @@ using ProceduralNoise
 using Random: default_rng, seed!
 using GLMakie
 
-function heatmap(matrix)
-  fig, ax, hm = GLMakie.heatmap(matrix; colormap = :inferno)
-  Colorbar(fig[:, end+1], hm)
+function plot(kwargs...)
+  fig = Figure(; resolution = (1080, 1080), kwargs...)
+  layout = fig[1, 1]
+  axis = Axis(layout; aspect = 1)
+  fig, layout, axis
+end
+
+function plot_heatmap!(fig, axis, matrix)
+  hm = heatmap!(axis, matrix; colormap = :inferno)
+  Colorbar(fig[1, 2], hm)
   fig
+end
+
+function heatmap(matrix)
+  fig, layout, axis = plot()
+  plot_heatmap!(fig, axis, matrix)
 end
 
 function generate_terrain(resolution; seed = rand(UInt64))
