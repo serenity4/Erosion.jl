@@ -66,7 +66,7 @@ end
 ESTIMATED_MAX_VELOCITY = 30.0 # in m/s
 choose_timestep_cfl(terrain_scale) = terrain_scale / ESTIMATED_MAX_VELOCITY
 
-time_range(model::SimulationBasedErosion) = zero(model.duration):model.timestep:model.duration
+time_range(model) = zero(model.duration):model.timestep:model.duration
 
 function erode!(terrain, maps::SimulationMaps, model::SimulationBasedErosion; progress = false)
   seed!(model.rng, model.seed)
@@ -141,8 +141,6 @@ function water_flows(water_flow, point::GridPoint, model::SimulationBasedErosion
   K = min(1, d * model.terrain_scale^2 / (sum(components) * model.timestep))
   K .* components
 end
-
-neighbors(point::GridPoint) = @SVector [point.left, point.right, point.bottom, point.top]
 
 function computer_water_height_and_velocity!(water, velocity, model, water_flow)
   ni, nj = size(water_flow)

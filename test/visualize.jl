@@ -5,9 +5,9 @@ data = (; contour, skeleton, uplift = 0.5, radius = 1.5)
 p = UpliftPrimitive{Float64}(UPLIFT_PRIMITIVE_ASYMMETRIC_RIDGE, data)
 
 function uplift!(axis, fig, p::UpliftPrimitive)
-  n = 100
-  xs = ys = 0:(1/n):1
-  A = [uplift(p, P2(x, y)) for x in xs, y in ys]
+  n = 512
+  xs = ys = 0:(1/(n - 1)):1
+  A = Erosion.uplift_map(p, (n, n))
   hm = heatmap!(axis, xs, ys, A; colormap = :grays)
   Colorbar(fig[1, 2], hm)
 end

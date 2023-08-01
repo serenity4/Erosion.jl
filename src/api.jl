@@ -35,4 +35,4 @@ State required for the model to execute, involving e.g. auxiliary maps.
 """
 function execution_state end
 
-erode(terrain, model::ErosionModel{CPU}; kwargs...) = erode!(copy(terrain), execution_state(model, terrain), model; kwargs...)
+erode(terrain, model::ErosionModel{CPU}, args...; kwargs...) = erode!(copy(terrain), execution_state(model, terrain), model, args...; kwargs...)

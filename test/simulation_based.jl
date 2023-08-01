@@ -2,8 +2,6 @@ using StaticArrays
 using LinearAlgebra
 using Erosion: time_range, rainfall_map, SimulationMaps, erode!
 
-seed = 1
-
 @testset "Simulation-based erosion" begin
   model = SimulationBasedErosion(1.0)
   @test model.timestep < 0.25

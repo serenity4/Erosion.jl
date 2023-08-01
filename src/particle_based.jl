@@ -115,7 +115,6 @@ function erode!(terrain, ::Nothing, model::ParticleBasedErosion; progress = fals
   ErosionResult(terrain, ParticleMetrics(codes))
 end
 
-norm((x, y)) = hypot(x, y)
 normalize(direction) = direction ./ norm(direction)
 
 @enum DropletResult begin

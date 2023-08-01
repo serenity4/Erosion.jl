@@ -21,6 +21,8 @@ struct UpliftPrimitive{T}
   data::Any
 end
 
+Base.broadcastable(x::Union{UpliftTree, UpliftPrimitive}) = Ref(x)
+
 function Base.getproperty(primitive::UpliftPrimitive{T}, name::Symbol) where {T}
   name === :asymmetric_ridge && return primitive.data::@NamedTuple{contour::Patch{BezierCurve,3,Vector{Point{2,T}}}, skeleton::Patch{BezierCurve,3,Vector{Point{2,T}}}, uplift::Float64, radius::Float64}
   name === :mountain_range && return primitive.data::@NamedTuple{radius::Patch{BezierCurve,3}, skeleton::Segment{2}, uplift::Patch{BezierCurve,3}}
@@ -32,7 +34,7 @@ function uplift(primitive::UpliftPrimitive, p)
   @match primitive.type begin
     &UPLIFT_PRIMITIVE_ASYMMETRIC_RIDGE => begin
       (; contour, skeleton, uplift, radius) = primitive.asymmetric_ridge
-      _, p′ = project(skeleton, p)
+      p′ = projection(skeleton, p)
       line = Line(p′, p)
       p ≈ p′ && return uplift
       ℐ = filter!(x -> GeometryExperiments.coordinate(line, x) ≥ 0, intersect(line, contour))
@@ -45,3 +47,9 @@ function uplift(primitive::UpliftPrimitive, p)
 end
 
 uplift_falloff(distance, radius) = distance > radius ? zero(distance) : (1 - (distance/radius)^2)^3
+
+function uplift_map(primitive, (nx, ny))
+  Δx, Δy = 1 ./ ((nx, ny) .- 1)
+  grid = [Point2(i, j) for i in 0:Δx:1, j in 0:Δy:1]
+  uplift.(primitive, grid)
+end
