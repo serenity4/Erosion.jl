@@ -1,6 +1,9 @@
 using ProceduralNoise
 using Random: default_rng, seed!
 using GLMakie
+GLMakie.activate!(inline = true)
+
+load_uplift(file) = (x -> Float64(x.r)).(load(joinpath(@__DIR__, "uplift", file)))
 
 function plot(kwargs...)
   fig = Figure(; resolution = (1080, 1080), kwargs...)
@@ -9,15 +12,15 @@ function plot(kwargs...)
   fig, layout, axis
 end
 
-function plot_heatmap!(fig, axis, matrix)
-  hm = heatmap!(axis, matrix; colormap = :inferno)
+function plot_heatmap!(fig, axis, matrix; colormap = :inferno)
+  hm = heatmap!(axis, matrix; colormap)
   Colorbar(fig[1, 2], hm)
   fig
 end
 
-function heatmap(matrix)
+function heatmap(matrix; colormap = :inferno)
   fig, layout, axis = plot()
-  plot_heatmap!(fig, axis, matrix)
+  plot_heatmap!(fig, axis, matrix; colormap)
 end
 
 function generate_terrain(resolution; seed = rand(UInt64))

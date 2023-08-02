@@ -1,8 +1,11 @@
 using Erosion
-using Erosion: neighborhood, elliptic_falloff, ParticleMetrics, UPLIFT_PRIMITIVE_ASYMMETRIC_RIDGE, ErosionResult
+using Erosion: neighborhood, elliptic_falloff, ParticleMetrics, UPLIFT_PRIMITIVE_ASYMMETRIC_RIDGE, ErosionResult, drainage_weight, uplift_map, compute_drainage
 using GeometryExperiments: Point2, Point3, Patch, BezierCurve
+using GridHelpers: GridPoint, neighbors, EightNeighbors, is_outside_grid
+using LinearAlgebra: norm
 using ProceduralNoise
 using Test
+using FileIO, ImageIO
 
 const P2 = Point2
 const P3 = Point3

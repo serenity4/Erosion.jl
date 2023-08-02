@@ -75,6 +75,7 @@ function erode!(terrain, maps::SimulationMaps, model::SimulationBasedErosion; pr
     progress && print("\r$(Base.text_colors[:green])SimulationBasedErosion$(Base.text_colors[:default]): timestep $(round(t; digits = 1))/$(model.duration)                       ")
     erode!(terrain, maps, model, t, rainfall)
   end
+  progress && println()
   ErosionResult(terrain, maps)
 end
 
