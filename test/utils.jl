@@ -5,8 +5,8 @@ GLMakie.activate!(inline = true)
 
 load_uplift(file) = (x -> Float64(x.r)).(load(joinpath(@__DIR__, "uplift", file)))
 
-function plot(kwargs...)
-  fig = Figure(; resolution = (1080, 1080), kwargs...)
+function plot(; resolution = (1080, 1080), kwargs...)
+  fig = Figure(; resolution, kwargs...)
   layout = fig[1, 1]
   axis = Axis(layout; aspect = 1)
   fig, layout, axis

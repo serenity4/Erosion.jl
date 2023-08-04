@@ -43,3 +43,43 @@ end
 
 # @time erode!(maps, model)
 # @profview erode!(maps, model)
+
+# Drainage networks
+
+nx, ny = (256, 256)
+elevation = generate_terrain((nx, ny); seed)
+elevation = [(2x - 1)^2 + (2y - 1)^2 for x in 0:1/(nx - 1):1, y in 0:1/(ny - 1):1]
+elevation = ones(nx, ny)
+elevation[nx ÷ 2, ny ÷ 2] = 0.0
+elevation = load_uplift("alpes_noise.png")
+display(heatmap(elevation))
+
+model = TectonicBasedErosion(nothing; inverse_momentum_power = 4)
+drainage = zeros((nx, ny))
+new_drainage = zeros((nx, ny))
+for i in 1:100
+  Threads.@threads for i in 1:nx
+    for j in 1:ny
+      point = GridPoint(i, j)
+      new_drainage[point] = compute_drainage(drainage, elevation, point, (nx, ny), model)
+    end
+  end
+  copyto!(drainage, new_drainage)
+  # i % 10 == 1 && display(heatmap(drainage; colormap = :grays))
+end
+display(heatmap(drainage; colormap = :grays))
+
+fig, layout, axis = plot(; resolution = (1920, 1080))
+axis2 = Axis(fig[1, 2]; aspect = 1)
+heatmap!(axis, elevation; colormap = :grays)
+heatmap!(axis2, drainage; colormap = :grays)
+fig
+
+using Colors, ImageShow
+using SPIRV.MathFunctions
+
+A = convert(Matrix{RGB{Float64}}, elevation)
+alpha = remap.(drainage, extrema(drainage)..., 0.0, 1.0)
+blend(src, dst, alpha) = src .* (1 .- alpha) .+ dst .* alpha
+B = blend(A, RGB{Float64}(1, 0, 0), alpha)
+save("elevation_with_drainage.png", B)

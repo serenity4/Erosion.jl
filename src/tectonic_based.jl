@@ -75,25 +75,32 @@ end
 function compute_drainage(drainage, elevation, point, (nx, ny), model)
   value = 0.0
   steepest_slope = 0.0
+  steepest_neighbor = point
   for neighbor in neighbors(point, EightNeighbors())
     is_outside_grid(neighbor, (nx, ny)) && continue
-    slope = compute_slope(elevation, point, neighbor)
-    slope < -model.min_slope || continue
-    steepest_slope = max(steepest_slope, -slope)
+    slope = compute_slope(elevation, neighbor, point)
+    slope > model.min_slope || continue
+    if steepest_slope < slope
+      steepest_slope = max(steepest_slope, slope)
+      steepest_neighbor = neighbor
+    end
     weight = drainage_weight(elevation, point, neighbor, (nx, ny), inverse_momentum_power(model))
     @assert !isnan(weight)
     @assert 0 ≤ weight ≤ 1
     value += weight * drainage[neighbor]
   end
-  steepest_slope != 0.0 && (value += norm((1/nx, 1/ny)) / steepest_slope)
+  steepest_slope != 0.0 && (value += norm((1/nx, 1/ny)) * grid_distance(point, steepest_neighbor) * steepest_slope)
   value
 end
 
 @inline function compute_slope(elevation, point, neighbor)
   Δh = elevation[point] - elevation[neighbor]
-  d = sqrt(sum((neighbor.coords .- point.coords) .^ 2)) # hypot/norm are slower
-  Δh/d
+  Δh/grid_distance(point, neighbor)
 end
+
+# hypot/norm are slower
+# grid_distance(point, neighbor) = sqrt(sum((neighbor.coords .- point.coords) .^ 2))
+grid_distance(point, neighbor) = neighbor in neighbors(point, FourNeighbors()) ? 1.0 : sqrt(2)
 
 @inline function drainage_weight(elevation, point, neighbor, (nx, ny), p)
   denom = 0.0
