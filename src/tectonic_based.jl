@@ -32,7 +32,7 @@ end
 
 function ErosionMaps(elevation, model::TectonicBasedErosion)
   uplift = model.uplift isa Union{UpliftPrimitive, UpliftTree} ? uplift_map(model.uplift, size(elevation)) : deepcopy(model.uplift)
-  ErosionMaps(zeros(size(elevation)), zeros(size(elevation)), elevation, zeros(size(elevation)), uplift, zeros(size(elevation)))
+  ErosionMaps{typeof(elevation)}(zeros(size(elevation)), zeros(size(elevation)), elevation, zeros(size(elevation)), uplift, zeros(size(elevation)))
 end
 
 erode(terrain, model::TectonicBasedErosion{CPU}; kwargs...) = erode!(execution_state(model, terrain), model; kwargs...)
@@ -69,7 +69,7 @@ function simulate!(maps::ErosionMaps, model::TectonicBasedErosion, point, (nx, n
   Δh = laplacian(elevation, point, (nx, ny))
   drainage_value = compute_drainage(drainage, elevation, point, (nx, ny), model)
   maps.new_drainage[point] = drainage_value
-  maps.new_elevation[point] += model.speed * (model.uplift_factor * uplift[point] - model.stream_power * drainage_value + model.smooth_factor * Δh)
+  maps.new_elevation[point] = elevation[point] + model.speed * (model.uplift_factor * uplift[point] - model.stream_power * drainage_value + model.smooth_factor * Δh)
 end
 
 function compute_drainage(drainage, elevation, point, (nx, ny), model)
@@ -78,6 +78,7 @@ function compute_drainage(drainage, elevation, point, (nx, ny), model)
   steepest_neighbor = point
   for neighbor in neighbors(point, EightNeighbors())
     is_outside_grid(neighbor, (nx, ny)) && continue
+    elevation[neighbor] > elevation[point] || continue
     slope = compute_slope(elevation, neighbor, point)
     slope > model.min_slope || continue
     if steepest_slope < slope

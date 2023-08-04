@@ -1,9 +1,11 @@
 using ProceduralNoise
 using Random: default_rng, seed!
+using ColorTypes
 using GLMakie
 GLMakie.activate!(inline = true)
 
-load_uplift(file) = (x -> Float64(x.r)).(load(joinpath(@__DIR__, "uplift", file)))
+load_uplift(file) = (x -> convert(Float64, convert(Gray, x))).(load(joinpath(@__DIR__, "uplift", file)))
+load_elevation(file) = (x -> convert(Float64, convert(Gray, x))).(load(joinpath(@__DIR__, "elevation", file)))
 
 function plot(; resolution = (1080, 1080), kwargs...)
   fig = Figure(; resolution, kwargs...)
