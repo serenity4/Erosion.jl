@@ -38,7 +38,7 @@
   data = (; contour, skeleton, uplift = 0.5, radius = 1.5)
   uplift = UpliftPrimitive{Float64}(UPLIFT_PRIMITIVE_ASYMMETRIC_RIDGE, data)
   model = TectonicBasedErosion(uplift, 5; speed = 5)
-  elevation = zeros((nx, ny))
+  elevation = generate_terrain((nx, ny))
   result = erode(elevation, model; progress = true)
   @test result isa ErosionResult
   elevation = result.terrain
@@ -47,11 +47,11 @@
   @test all(!isnan, drainage)
   @test all(!isnan, elevation)
   @test norm(uplift, Inf) < 1.0
-  # @test norm(drainage, Inf) < 10.0
+  @test norm(drainage, Inf) < 10.0
   @test norm(elevation, Inf) < 1.0
   @test all(-0.1 .≤ uplift .≤ 1.1)
-  # @test all(-0.1 .≤ drainage .≤ 1.1)
-  # @test all(-0.1 .≤ elevation .≤ 1.1)
+  @test all(-0.1 .≤ drainage .≤ 1.1)
+  @test all(-0.1 .≤ elevation .≤ 1.1)
 end;
 
 # heatmap(uplift)
