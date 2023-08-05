@@ -1,14 +1,25 @@
-abstract type ExecutionType end
+abstract type ExecutionMode end
 
-struct CPU{T} <: ExecutionType
-  data::T
+Base.@kwdef struct CPU <: ExecutionMode
+  parallel::Bool = false
 end
 
-struct GPU{T} <: ExecutionType
-  data::T
-end
+struct GPU <: ExecutionMode end
 
-abstract type ErosionModel{ExecutionType} end
+abstract type ErosionModel{ExecutionMode} end
+
+macro parallelize(mode, ex)
+  var = gensym(:mode)
+  esc(quote
+    $var = $mode
+    isa($var, $CPU) || throw(ArgumentError("The execution mode must be set to CPU, got " * string($var)))
+    if $var.parallel
+      $Threads.@threads $ex
+    else
+      $ex
+    end
+  end)
+end
 
 """
     erode(terrain, model::ErosionModel)
