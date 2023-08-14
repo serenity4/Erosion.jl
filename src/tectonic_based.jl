@@ -1,6 +1,6 @@
 struct TectonicBasedErosion{D,U,P} <: ErosionModel{D}
   uplift::U
-  iterations::Integer
+  iterations::Int
   speed::Float64
   stream_power::Float64
   uplift_factor::Float64
@@ -31,7 +31,7 @@ struct ErosionMaps{M}
 end
 
 function ErosionMaps(elevation, model::TectonicBasedErosion)
-  uplift = model.uplift isa Union{UpliftPrimitive, UpliftTree} ? uplift_map(model.uplift, size(elevation)) : deepcopy(model.uplift)
+  uplift = model.uplift isa Union{UpliftPrimitive, UpliftTree} ? uplift_map(model.uplift, size(elevation)) : isa(uplift, AbstractArray) ? deepcopy(model.uplift) : model.uplift
   ErosionMaps{typeof(elevation)}(zeros(size(elevation)), zeros(size(elevation)), elevation, zeros(size(elevation)), uplift, zeros(size(elevation)))
 end
 
@@ -64,8 +64,6 @@ end
 
 function simulate!(maps::ErosionMaps, model::TectonicBasedErosion, point, (nx, ny))
   (; elevation, drainage, uplift) = maps
-  @assert !isnan(drainage[point])
-  @assert !isnan(elevation[point])
   Δh = laplacian(elevation, point, (nx, ny))
   drainage_value = compute_drainage(drainage, elevation, point, (nx, ny), model)
   maps.new_drainage[point] = drainage_value
