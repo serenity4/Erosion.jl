@@ -11,7 +11,7 @@ save_uplift(uplift, file) = save(joinpath(@__DIR__, "uplift", file), remap.(upli
 save_elevation(elevation, file) = save(joinpath(@__DIR__, "elevation", file), remap.(elevation, extrema(elevation)..., 0, 1))
 
 function plot(; resolution = (1080, 1080), kwargs...)
-  fig = Figure(; resolution, kwargs...)
+  fig = Figure(; size = resolution, kwargs...)
   layout = fig[1, 1]
   axis = Axis(layout; aspect = 1)
   fig, layout, axis

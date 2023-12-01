@@ -45,7 +45,7 @@ display(heatmap(maps.elevation; colormap = :grays))
 
 for i in 1:1000
   erode!(maps, model; progress = true)
-  display(heatmap(maps.elevation; colormap = :grays))
+  i % 20 == 0 && display(heatmap(maps.elevation; colormap = :grays))
   # display(heatmap(maps.drainage))
 end
 

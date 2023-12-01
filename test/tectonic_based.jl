@@ -4,6 +4,7 @@
 
   @testset "Drainage" begin
     @testset "Drainage weights" begin
+      model = TectonicBasedErosion(nothing)
       p = 4
       for point in GridPoint.([1, 100, 256], [4, 53, 256])
         weights = map(neighbors(point, EightNeighbors())) do neighbor
