@@ -1,7 +1,7 @@
 name = "Erosion"
 uuid = "1d686ed2-f4cc-40f7-813c-2f806c81b237"
 authors = ["Cédric BELMANT"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 GeometryExperiments = "1147bd75-18e1-436d-adda-d58e854f897d"
