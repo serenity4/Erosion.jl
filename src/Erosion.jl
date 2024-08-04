@@ -15,6 +15,20 @@ include("simulation_based.jl")
 include("uplift.jl")
 include("tectonic_based.jl")
 
-export ErosionModel, erode, erode!, ParticleBasedErosion, SimulationBasedErosion, TectonicBasedErosion, ErosionMaps, UpliftPrimitive, CPU, GPU
+export ErosionModel,
+       erode, erode!,
+
+       ParticleBasedErosion,
+
+       SimulationBasedErosion,
+
+       TectonicBasedErosion,
+       ErosionMaps,
+       UpliftPrimitive,
+       materialize_uplift,
+       UPLIFT_PRIMITIVE_ASYMMETRIC_RIDGE,
+       UPLIFT_PRIMITIVE_MOUNTAIN_RANGE,
+       UPLIFT_PRIMITIVE_VALLEY,
+       CPU, GPU
 
 end

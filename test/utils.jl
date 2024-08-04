@@ -28,10 +28,11 @@ function heatmap(matrix; colormap = :inferno)
   plot_heatmap!(fig, axis, matrix; colormap)
 end
 
-function generate_terrain(resolution; seed = rand(UInt64))
-  seed!(default_rng(), seed)
-  noise = Fractal{Perlin}((2, 2), octaves = 8)
-  noise(resolution)
+generate_terrain(resolution; seed = rand(UInt64)) = generate_terrain(Float64, resolution; seed)
+function generate_terrain(::Type{T}, resolution; seed = rand(UInt64)) where {T}
+    seed!(default_rng(), seed)
+    noise = Fractal{Perlin{T}}((2, 2), octaves = 8)
+    noise(resolution)
 end
 
 # Requires loading Plots: heatmap; FileIO; ImageIO.

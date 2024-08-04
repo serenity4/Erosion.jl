@@ -104,7 +104,7 @@ precipitation(model, (nx, ny)) = norm(2 .* model.scale ./ @SVector [nx, ny])
 
 function compute_drainage(drainage, elevation, point, (nx, ny), model)
   water = precipitation(model, (nx, ny))
-  if model.inverse_momentum_power === Val{Inf}()
+  if model.inverse_momentum_power === Val{ftype(model)(Inf)}()
     water += accumulated_water_steepest(drainage, elevation, point, (nx, ny), model)
   else
     water += accumulated_water(drainage, elevation, point, (nx, ny), model)
