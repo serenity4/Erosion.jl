@@ -155,9 +155,10 @@ function steepest_neighbor_down(elevation, point, (nx, ny), model)
   candidate = point
   U = utype(model)
   steepest_slope = zero(ftype(model))
-  neighbor_list = neighbors(point, EightNeighbors())
-  for i in U(1):U(8)
-    neighbor = neighbor_list[i]
+  # neighbor_list = neighbors(point, EightNeighbors())
+  # Main.@for i in U(1):U(8) begin
+  #   neighbor = neighbor_list[i]
+  for neighbor in neighbors(point, EightNeighbors())
     is_outside_grid(neighbor, (nx, ny)) && continue
     elevation[neighbor] < elevation[point] || continue
     slope = compute_slope(elevation, neighbor, point, model, (nx, ny))
@@ -177,7 +178,6 @@ end
 end
 
 terrain_distance(from, to, model, (nx, ny)) = grid_distance(ftype(model), from, to) * norm((2 .* model.scale ./ @SVector [nx, ny]))
-# hypot/norm are slower
 grid_distance(::Type{T}, from::GridPoint, to::GridPoint) where {T} = norm(T.(from[]) .- T.(to[]))
 
 @inline function drainage_weight(elevation, point, neighbor, model, (nx, ny), p)
